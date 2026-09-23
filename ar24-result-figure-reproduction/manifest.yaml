@@ -1,0 +1,29 @@
+name: ar24-result-figure-reproduction
+version: "1.0.0"
+description: "按论文有页码证据的声明式规范，用真实实验数据重绘结果图并输出严格门禁证据。"
+entry_point: "scripts/figure_runner.py"
+parameters:
+  type: object
+  properties:
+    spec:
+      type: string
+      description: "paper_result_figure_specs.json 路径"
+    run_output_root:
+      type: string
+      description: "本轮 $RUN_ROOT/step_7 输出目录"
+    code_root:
+      type: string
+      description: "已审计项目代码根；官方脚本必须位于该目录"
+    repo_commit:
+      type: string
+      description: "本轮代码 commit"
+    artifact_manifest:
+      type: string
+      description: "需要合并结果图片的 artifact_manifest.json"
+    experiment_details:
+      type: string
+      description: "需要合并结果图片的 experiment_details.json"
+    validation_result:
+      type: string
+      description: "需要合并结果图片的 validation_result.json"
+  required: ["spec", "run_output_root"]

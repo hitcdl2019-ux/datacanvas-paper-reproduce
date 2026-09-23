@@ -1,0 +1,20 @@
+# Python/cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Local/runtime artifacts
+.DS_Store
+.env
+*.log
+execution_run_history.json
+runs/
+outputs/
+data/
+models/

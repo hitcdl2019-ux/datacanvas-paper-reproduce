@@ -1,0 +1,82 @@
+name: ar24-repro-report
+version: "1.8.0"
+description: "复核必需的 <repo_name>_Audit_Report.md，并按固定的封面、目录、十章正文与三个附录模板，将单轮或多轮复现证据排版为 Word (.docx) 学术报告；可选表格缺失率严格超过 50% 时自动省略且不占编号，关键证据表始终保留；正文优先展示论文结果图且最多 8 张，附录 A 收录全部实验图片，附录 B 为输出索引，附录 C 嵌入完整审计报告；中文统一宋体，英文与数字统一 Times New Roman。"
+entry_point: "report_generator.py:generate_report"
+parameters:
+  type: object
+  properties:
+    repo_name:
+      type: string
+      description: "项目名称；输出文件名使用 <repo_name>_final_reproduce_report.docx"
+    project_profile:
+      type: object
+      description: "项目基本档案；键值会渲染为报告基本信息表"
+    scientific_context:
+      type: object
+      description: "论文背景、核心创新点和领域上下文"
+    readiness_matrix:
+      type: array
+      description: "复现点准备度、阻碍因素、推荐算力和预计耗时"
+      items:
+        type: object
+    actual_test_outcomes:
+      type: array
+      description: "step_7 实际运行结果、输出产物和耗时"
+      items:
+        type: object
+    compute_usage:
+      type: object
+      description: "论文披露与本次复现的墙钟时间、分阶段设备小时、证据和可比性"
+    execution_plan_selection:
+      type: object
+      description: "用户确认的完整执行计划；报告第三、第四和第七部分的复现点必须严格按其内容和顺序罗列"
+    experiment_details:
+      type: array
+      description: "可选的逐实验动态详情；每项包含 case_name、status 和 sections，section 支持 text、list、key_value、flow、table、artifacts"
+      items:
+        type: object
+    execution_run_history:
+      description: "必填的 execution_run_history.json 路径或已解析对象；必须包含 step_7.5 明确授权证据，并作为执行计划、核心验证、实验产物、算力和模型来源对比的唯一事实源"
+      oneOf:
+        - type: object
+        - type: string
+    scientific_repro_contract:
+      description: "scientific_repro_contract.json 路径或已解析对象；用于提取物理工况与数值方法"
+      oneOf:
+        - type: object
+        - type: string
+    artifact_manifest:
+      description: "artifact_manifest.json 路径或已解析对象；用于提取数据、权重、配置和产物的路径、来源与校验和"
+      oneOf:
+        - type: object
+        - type: string
+    validation_result:
+      description: "validation_result.json 路径或已解析对象；用于提取实验指标、验证条件、图表和 claim gate"
+      oneOf:
+        - type: object
+        - type: string
+    repro_conclusions:
+      type: array
+      description: "论文或官方基准与本次复现实测结果的对齐结论"
+      items:
+        type: object
+    se_audit_results:
+      type: object
+      description: "代码缺陷、风险门控和排坑记录"
+    repro_recommendations:
+      type: object
+      description: "未完成项根因、后续指标补齐和训练优化建议"
+    output_dir:
+      type: string
+      description: "兼容输入；实际输出固定由台账 report_gate.run_id 定位到该轮 step_8"
+    font_english:
+      type: string
+      const: "Times New Roman"
+      default: "Times New Roman"
+      description: "兼容参数；固定为 Times New Roman，传入其他值会被生成器忽略"
+    font_chinese:
+      type: string
+      const: "SimSun"
+      default: "SimSun"
+      description: "兼容参数；固定为 SimSun（宋体），传入其他值会被生成器忽略"
+  required: ["repo_name", "project_profile", "execution_run_history"]

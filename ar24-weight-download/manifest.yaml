@@ -1,0 +1,24 @@
+name: ar24-weight-download
+version: "2.0.0"
+description: "AR24 v3 step_6：读取当前 run 的权重投影，写本轮回执并准备共享 model。"
+entry_point: "weight_runner.py:run_local_weight_download"
+runners:
+  weight: "weight_runner.py"
+shared_modules:
+  backend_executor: "backend_executor.py"
+  command_safety: "command_safety.py"
+  env_backend: "env_backend.py"
+  path_context: "path_context.py"
+  retry_policy: "retry_policy.py"
+parameters:
+  type: object
+  properties:
+    repo_name: {type: string, description: "仓库目录名"}
+    prep_plan: {type: string, description: "当前 run/step_4/prep_plan.json 路径"}
+    backend: {type: string, enum: ["local", "ssh", "cci"], default: "local"}
+    ssh: {type: string, description: "backend=ssh 时使用的 SSH 连接命令"}
+    cci_state: {type: string, description: "backend=cci 时使用的本地安全状态文件"}
+    history: {type: string, description: "主流水线 execution_run_history.json 路径"}
+    run_id: {type: string, description: "主流水线当前执行轮次 ID"}
+    standalone: {type: boolean, default: false, description: "仅脱离主流水线独立运行时显式启用"}
+  required: ["repo_name", "run_id"]

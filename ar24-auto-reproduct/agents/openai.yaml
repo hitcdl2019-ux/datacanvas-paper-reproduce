@@ -1,0 +1,7 @@
+interface:
+  display_name: "AR24 自动论文复现"
+  short_description: "交互式执行单轮或多轮论文复现，并在确认后生成累计 Word 报告"
+  default_prompt: "Use $ar24-auto-reproduct to reproduce this project. At step_7.5, display the board, three choices, and confirmation ID returned atomically by finish-run, then stop; never infer my choice from silence or time pressure, and never replace the final DOCX with Markdown. Preserve every executed run and embed the audit report in the final Word report."
+
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,18 @@
+{
+  "name": "ar24-paper-analysis",
+  "version": "2.0.0",
+  "description": "全自动多领域论文解析工具 v2.0。脚本层做结构化提取(元数据/章节分段/公式图像/超参匹配/指标匹配/领域检测/Baseline定位)，Agent 层做语义推理与报告生成。支持本地 PDF、GitHub 链接、arXiv 链接三种输入。",
+  "trigger": [
+    "分析论文",
+    "解析 paper",
+    "提取论文指标",
+    "论文 baseline",
+    "读论文",
+    "paper analysis",
+    "parse paper",
+    "论文复现",
+    "论文解析"
+  ],
+  "author": "openclaw",
+  "changelog": "v2.0: 结构化提取(元数据/章节/公式图像/超参/指标/领域/Baseline), JSON输出, 领域自适应增强"
+}

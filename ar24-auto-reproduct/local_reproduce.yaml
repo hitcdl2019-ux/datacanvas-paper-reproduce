@@ -1,0 +1,295 @@
+version: "claw-workflow/v2.2"
+name: AR24_CCI_First_Auto_Reproduction_Pipeline
+description: "包含公共仓库预检、执行计划选择和报告前多轮确认门，默认优先 CCI 云算力、可切换本地或 SSH 远端 GPU 的复现 workflow 兼容参考；权威执行入口是 PIPELINE.md。"
+
+parameters:
+  github_url:
+    type: string
+    description: "需要复现的 GitHub 仓库地址"
+  paper_url:
+    type: string
+    description: "可选论文 PDF/arXiv 链接"
+  backend_choice:
+    type: string
+    enum: ["cci", "local", "ssh"]
+    default: "cci"
+    description: "公共仓库预检确认需要重新复现后默认预选 CCI 云算力，也可切换本地算力或 SSH 远程算力；必须由用户明确确认，默认值不构成授权。确认前不得执行 step_0。"
+  public_repro_repo_url:
+    type: string
+    default: ""
+    description: "公共复现仓库地址；为空时跳过历史复现预检"
+  public_repro_repo_type:
+    type: string
+    default: "unset"
+    description: "公共复现仓库类型：unset | git | http_index | filesystem"
+
+agent:
+  name: "CCI-First-Auto-Repro-Director"
+  system_prompt: |
+    该 YAML 仅作兼容参考；权威规范见 PIPELINE.md。
+    收到 github_url 后，先执行只读公共复现仓库预检；需要重新复现时默认预选并首先展示 CCI 云算力，同时允许切换本地或 SSH。
+    默认值、沉默和超时不构成确认；用户明确确认前不得执行 step_0，不得运行 probe.py 或 cci_manager.py preflight，不得审计、克隆或安装。
+    SSH 后端使用 backend=ssh；缺少连接信息时 step_0 返回 missing_ssh_connection；需要密码时返回 missing_ssh_password。
+    密码通过 REPRO_SSH_PASSWORD 或 --ssh-password 继续。
+    CCI 后端先只读 preflight，必须由用户明确确认 CPU/GPU 规格、同一镜像、已有 NAS、路径和原始价格；确认前不得创建付费实例。
+    CCI step_3 至 step_6 使用 CPU 构建实例，释放成功后才创建 GPU 执行实例；所有终态主动释放，失败进入 cleanup_required。
+    score < 60 时终止且不展示候选；score >= 60 时完整展示动态候选并等待用户选择。
+    每个用户确认的计划创建独立 run_id，并原子更新 execution_run_history.json。
+    每轮结束后必须在 step_7.5 使用 finish-run 原子保存终态并直接取得完整看板、三项选择和一次性确认编号，原样展示后结束当前回复。
+    只有用户的新回复明确选择最终 DOCX，且 decide 保存匹配编号和用户原始回复证据后，才可执行 step_8。
+    沉默、超时、时间不足、token/上下文预算或 agent 自行判断均不构成授权。
+    最终复现报告只允许生成 DOCX；失败时必须报错或暂停，禁止降级生成 Markdown、纯文本或其他格式的最终报告。
+    最终产物集必须同时包含 <repo_name>_final_reproduce_report.docx 和 <repo_name>_Audit_Report.md；
+    审计报告必须由 step_1 真实生成、非空且可读，step_8 前再次校验，SSH 模式下两份文件一起同步回本地。
+    每完成一个 task，输出与 PIPELINE.md 一致的完整 11 行 Markdown 看板。
+    step_3 至 step_8 的多轮复用、算力计时和报告组装必须遵循 PIPELINE.md；该文件是唯一事实源。
+
+tasks:
+  - id: step_precheck_public_repro
+    name: "公共复现仓库预检"
+    instruction: |
+      从 github_url 提取 repo_name。public_repro_repo_url 为空或类型为 unset 时记录跳过并继续。
+      配置后按 git、http_index 或 filesystem 只读搜索同名历史复现，不做环境探测、审计、克隆或安装。
+      完整产物要求：*_final_reproduce_report.docx、*_Audit_Report.md、paper_execution_options.md/json、
+      有论文输入时的 paper_report.md，以及至少一个 repro_run.log、env_patches.md、结果目录或等价日志。
+      产物不齐时列出缺失项并继续。产物齐全时展示路径和版本，等待 A 直接使用或 B 继续重新复现。
+    expected_output: "公共仓库未配置/未命中/产物不齐时继续；完整命中时获得用户复用选择。"
+
+  - id: step_0_probe
+    name: "后端选择、算力探测与环境自检"
+    depends_on: [step_precheck_public_repro]
+    instruction: |
+      已完成后端明确确认后再执行。默认预选 CCI，但不得因默认值自动执行。
+      用户选择本地算力时运行 probe.py --backend local。
+      用户选择 SSH 远程算力时运行 probe.py --backend ssh --ssh "ssh -p 40072 user@host"。
+      用户选择 CCI 云算力时运行 cci_manager.py preflight；目录证据标记 cci_catalog_planned，不得冒充实例实测。
+      输出 backend、mode、CPU/GPU/RAM/磁盘、编译器、MPI、Julia、OpenFOAM、容器、env_backend、checks、warnings、blockers。
+      step_0 不创建环境。缺少 uv/conda 只限制 Python 候选，不得熔断 Julia/OpenFOAM/容器候选。
+      backend=ssh、missing_ssh_connection、missing_ssh_password 都必须被显式处理。
+      backend=cci 缺凭证、缺已有 NAS 或未明确确认时必须暂停，不得影响 local/ssh。
+      后续步骤必须使用选定后端真实 GPU，不得固定写 H100。
+    expected_output: "选定后端探测结果；ready=false 时熔断或暂停。"
+
+  - id: step_0_5_path_policy
+    name: "精确根路径确认与运行预留"
+    depends_on: [step_0_probe]
+    instruction: |
+      local/SSH 调用 path_policy.py --base-root <exact_root> --repo-name <repo_name> 校验项目专用精确目录；
+      该目录本身就是复现根，不追加 ar24 或项目名，最多重问 3 次。
+      CCI 同样使用用户确认的 NAS 精确目录；付费实例前在 local_staging_root 建立相同 v3 布局，
+      构建实例探测通过后同步根文件、共享目录和运行目录。
+      导出 REPRO_BASE_ROOT、REPRO_ROOT、WORKSPACE_ROOT=$REPRO_ROOT、REPRO_OUTPUT_ROOT=$REPRO_ROOT、
+      REPRO_ENVS_ROOT=$REPRO_ROOT/envs、CONDA_ENVS_ROOT=$REPRO_ENVS_ROOT、
+      CONDA_ENVS_PATH、RUN_ID、RUN_ROOT、RUN_OUTPUT_ROOT、DATASET_DIR、MODEL_DIR。
+      初始化根 execution_run_history.json 并立即 reserve-run；每次尝试都保留编号和全部步骤目录。
+    expected_output: "v3 路径策略 ready，运行已预留，环境变量已导出。"
+
+  - id: step_1_audit
+    name: "项目与论文双重审计"
+    depends_on: [step_0_5_path_policy]
+    instruction: |
+      调用 ar24-project-analysis 审计 GitHub 仓库，强制生成
+      $RUN_ROOT/step_1/<repo_name>_Audit_Report.md 和同目录 audit_score.json。
+      审计报告必须使用 UTF-8、非空、可读，至少包含仓库来源、SciML/计算物理 v4 各维度评分与扣分证据、
+      resource_gate、physics_gate、安全/合规风险、阻断项、硬件迁移说明和最终 verdict，并与 audit_score.json 一致。
+      缺失、空文件、不可读或命名不规范都令 step_1 失败，禁止进入 step_2；后续步骤不得删除或覆盖。
+      若提供 paper_url，调用 ar24-paper-analysis 提取 Baseline 与超参数。
+      必须完整通读论文并生成动态数量的 paper_execution_options.md/json 与 paper_result_figure_specs.json；
+      只保留实验结果图并从正文/实验设置/附录提取带页码的绘制方法、坐标、单位、范围、刻度、图例、分面、色条和数据变换；
+      关键字段缺失时保持 blocked，禁止目测猜图。候选记录 result_figures，案例记录 model_source。
+      无论文时基于 README 和静态审计生成 skill 默认候选，并显式标记结果图不适用。
+      同时提取论文算力与训练时长；scope_detail 必须结构化记录适用的 dataset、data_scale、epochs、steps、
+      sample_count、checkpoint、evaluation_protocol，并保留 wall_clock_hours、硬件、数量、evidence、source_page。
+      每个规范字段都必须存在且非空；真正不适用时写 not_applicable，缺失、null、空字符串、unknown、undisclosed
+      均视为不完整。训练范围的 epochs 或 steps 至少一项必须为实质值；任何比例要求非空 `evidence` 与非空 `source_page`。
+      论文未披露时间时写 disclosed=false，仅未知的时间/device_hours 为空，已披露硬件证据不得丢失，禁止推测。
+      必须生成 resource_gate，字段至少包含 fit_status、recommended_resource、action、message。
+      必须生成 scientific_repro_contract.json 和 physics_gate；所有项目固定使用 SciML/计算物理 v4 评分，禁止回退到普通计算机或传统 ML 评分，资源不足不修改 overall_score。
+      审计器必须使用 step_0 的选定后端真实 GPU 估算资源。
+    expected_output: "审计报告、audit_score.json、scientific_repro_contract.json、resource_gate、physics_gate、paper_execution_options.md/json、paper_result_figure_specs.json。"
+
+  - id: step_2_condition_check
+    name: "复现可行性熔断"
+    depends_on: [step_1_audit]
+    instruction: |
+      先检查 score。score < 60 时终止流程，不进入执行计划选择且不展示候选。
+      熔断终态仍必须保留并列出 <repo_name>_Audit_Report.md 与 audit_score.json 路径，不得遗漏审计报告。
+      score >= 60 时通过并进入 step_2_5_execution_plan_selection。
+      resource_gate 记录当前资源、最低需求和 recommended_resource，但不得过滤候选，只能用于候选限制说明。
+      physics_gate 配置缺失阻止对应候选，验证缺失阻止成功结论；不得把它与资源门禁混为一谈。
+    expected_output: "score 低于 60 时熔断并交付审计报告；不低于 60 时进入执行计划选择。"
+
+  - id: step_2_5_execution_plan_selection
+    name: "通读论文后的执行计划选择"
+    depends_on: [step_2_condition_check]
+    instruction: |
+      读取 paper_execution_options.md/json，按实际数量使用 A、B、C……连续编号并展示全部候选。
+      SciML 候选按证据包含公开权重评估、物理统计评估、分阶段训练、DNS/数值数据生成、耦合求解器和完整链路。
+      不得因当前 CPU/GPU、显存、依赖、数据或权重条件凑数、合并、截断或隐藏候选。
+      将 paper_execution_options.md 的八列表格原样输出到终端/对话，列为选项、复现计划、来源/类型、
+      可行状态、核心资源需求、预计耗时、限制或阻断原因、推荐/可选。表后只提示用户回复可选编号，禁止逐项展开详情。
+      blocked 显示为“不可执行/否”，unknown 显示为“环境待确认/是”，runnable 显示为“可执行/是”。
+      所有项均 blocked 时仍完整展示表格后终止。
+      用户确认有效选项前禁止拉取代码、创建环境、下载、编译或真实运行。
+      用户回复编号后，必须从 JSON options 中按 id 读取完整候选对象并保存为 selected_execution_plan，不能只保存表格摘要。
+      通过 execution_history.py bind-plan 把完整候选绑定到已预留 run_id。
+      继续其他候选时 reserve-run --source-run-id <previous_run_id>，快照有效控制面证据并创建独立编号。
+      第二轮及以后生成 step_3 至 step_6 需求指纹，通过 reuse-plan 校验证据；任一步不可复用时重跑该步及下游，step_7 永远重跑。
+    expected_output: "终端已显示与 MD 一致的动态候选表格，获得完整 selected_execution_plan 和独立 run_id；或在全部受阻时展示表格后终止。"
+
+  - id: step_3_clone_code
+    name: "选定后端拉取代码"
+    depends_on: [step_2_5_execution_plan_selection]
+    instruction: |
+      执行任何拉取命令前记录带时区的 ISO-8601 时间戳 end_to_end_started_at。
+      调用 <SKILL_DIR(ar24-project-checkout)>/checkout_runner.py。
+      local: python <SKILL_DIR(ar24-project-checkout)>/checkout_runner.py --backend local --github_url <github_url> --repo_name <repo_name> --history "$WORKSPACE_ROOT/execution_run_history.json" --run-id "$RUN_ID"
+      ssh: python <SKILL_DIR(ar24-project-checkout)>/checkout_runner.py --backend ssh --ssh "ssh -p 40072 user@host" --github_url <github_url> --repo_name <repo_name> --history "$WORKSPACE_ROOT/execution_run_history.json" --run-id "$RUN_ID"
+      cci: python <SKILL_DIR(ar24-project-checkout)>/checkout_runner.py --backend cci --cci-state <cci_state.json> --github_url <github_url> --repo_name <repo_name> --history "$WORKSPACE_ROOT/execution_run_history.json" --run-id "$RUN_ID"
+      runner 必须自动写入本轮 step_3 日志、回执和 schema 2.0 台账；写入失败立即暂停。
+      代码位于 $RUN_ROOT/step_3/code；复用时用 --reuse-source-code 物化独立 clone 并校验 commit。
+      backend=ssh 时必须在远端执行，不要在本机创建项目目录。
+    expected_output: "端到端计时已开始；代码已克隆，并生成含 commit/tag/submodule/Git LFS 证据的 checkout_state.json。"
+
+  - id: step_4_dependency_prep
+    name: "项目分析与依赖准备"
+    depends_on: [step_3_clone_code]
+    instruction: |
+      读取 step_1 审计报告与 README，识别 Python、Julia、OpenFOAM、MPI、容器和编译能力，生成 environment_bundle。
+      通过 ar24-readme-parser 生成 prep_plan.json.readme_parse.step_projection。
+      调用 <SKILL_DIR(ar24-dependency-prep)>/prep_plan_builder.py 写入 prep_plan.json。
+      调用 <SKILL_DIR(ar24-dependency-prep)>/dependency_runner.py 只执行 readme_parse.step_projection.dependency_cmds。
+      step_4 是唯一准备 environment_bundle 的步骤。系统软件只校验，不自动执行管理员安装。
+      计划需要结果图复现时在本步的同一环境准备 NumPy、Matplotlib、Pillow；step_7 禁止临时安装。
+      local plan: python <SKILL_DIR(ar24-dependency-prep)>/prep_plan_builder.py --backend local --repo_name <repo_name> --run-id "$RUN_ID" --auto-detect
+      local deps: python <SKILL_DIR(ar24-dependency-prep)>/dependency_runner.py --backend local --repo_name <repo_name> --python_version <v> --mode <step_0.mode> --prep-plan "$RUN_ROOT/step_4/prep_plan.json" --history "$WORKSPACE_ROOT/execution_run_history.json" --run-id "$RUN_ID"
+      cci deps: python <SKILL_DIR(ar24-dependency-prep)>/dependency_runner.py --backend cci --cci-state <cci_state.json> --repo_name <repo_name> --python_version <v> --mode <build_probe.mode> --prep-plan "$RUN_ROOT/step_4/prep_plan.json" --history "$WORKSPACE_ROOT/execution_run_history.json" --run-id "$RUN_ID"
+      runner 必须自动写入 step_4 日志、回执与依赖/环境指纹；台账写入失败立即暂停。
+      禁止把 pip install -e .、python setup.py、cmake、make、ninja 放入 step_4 依赖投影。
+      旧的一体化项目准备入口已移除；本步骤只使用 ar24-dependency-prep。
+    expected_output: "environment_bundle 就绪，依赖安装成功，prep_plan.json 已保存。"
+
+  - id: step_5_data_download
+    name: "数据下载"
+    depends_on: [step_4_dependency_prep]
+    instruction: |
+      调用 <SKILL_DIR(ar24-data-download)>/data_runner.py，读取 readme_parse.step_projection.data_cmds，只执行数据下载/预处理。
+      step_5、step_6、step_7 必须先激活 step_4 创建的同一个环境；本步不得裸用 python、pip 执行项目命令。
+      local: python <SKILL_DIR(ar24-data-download)>/data_runner.py --backend local --repo_name <repo_name> --prep-plan "$RUN_ROOT/step_4/prep_plan.json" --history "$WORKSPACE_ROOT/execution_run_history.json" --run-id "$RUN_ID"
+      ssh: python <SKILL_DIR(ar24-data-download)>/data_runner.py --backend ssh --ssh "ssh -p 40072 user@host" --repo_name <repo_name> --prep-plan "$RUN_ROOT/step_4/prep_plan.json" --history "$WORKSPACE_ROOT/execution_run_history.json" --run-id "$RUN_ID"
+      cci: python <SKILL_DIR(ar24-data-download)>/data_runner.py --backend cci --cci-state <cci_state.json> --repo_name <repo_name> --prep-plan "$RUN_ROOT/step_4/prep_plan.json" --history "$WORKSPACE_ROOT/execution_run_history.json" --run-id "$RUN_ID"
+      data_cmds 为空时必须自动记录 skipped_not_required 和原因，不能留空。
+      实际数据目标必须为共享 $DATASET_DIR，日志和清单位于本轮 step_5/。
+      同时准备网格、坐标、初边值条件、DNS/LES/实验/合成数据和求解器 case，并生成 artifact_manifest.json。
+      受限数据集命中 request access/apply/agreement/contact authors 时暂停确认。
+    expected_output: "dataset/ 与物理资产准备完成，artifact_manifest.json 已生成。"
+
+  - id: step_6_weight_download
+    name: "模型权重下载"
+    depends_on: [step_5_data_download]
+    instruction: |
+      调用 <SKILL_DIR(ar24-weight-download)>/weight_runner.py，读取 readme_parse.step_projection.weight_cmds，只执行模型权重下载。
+      step_5、step_6、step_7 必须先激活 step_4 创建的同一个环境；本步不得裸用 python、pip 执行项目命令。
+      local: python <SKILL_DIR(ar24-weight-download)>/weight_runner.py --backend local --repo_name <repo_name> --prep-plan "$RUN_ROOT/step_4/prep_plan.json" --history "$WORKSPACE_ROOT/execution_run_history.json" --run-id "$RUN_ID"
+      ssh: python <SKILL_DIR(ar24-weight-download)>/weight_runner.py --backend ssh --ssh "ssh -p 40072 user@host" --repo_name <repo_name> --prep-plan "$RUN_ROOT/step_4/prep_plan.json" --history "$WORKSPACE_ROOT/execution_run_history.json" --run-id "$RUN_ID"
+      cci: python <SKILL_DIR(ar24-weight-download)>/weight_runner.py --backend cci --cci-state <cci_state.json> --repo_name <repo_name> --prep-plan "$RUN_ROOT/step_4/prep_plan.json" --history "$WORKSPACE_ROOT/execution_run_history.json" --run-id "$RUN_ID"
+      weight_cmds 为空时必须自动记录 skipped_not_required 和原因，不能留空。
+      实际权重目标必须为共享 $MODEL_DIR，日志和清单位于本轮 step_6/。
+      HuggingFace 权重默认 HF_ENDPOINT=https://hf-mirror.com。
+      下载后校验 model/ 下无零字节 .pt/.pth/.safetensors/.pkl/.bin/.npz 文件。
+      同时处理 BSON/JLD2、normalizer、scaler、坐标尺度和本构参数，并合并 artifact_manifest.json。
+    expected_output: "model/ 准备完成，权重校验通过。"
+
+  - id: step_7_execution
+    name: "编译、推理/微调测试与指标抓取"
+    depends_on: [step_6_weight_download]
+    instruction: |
+      激活 step_4 创建的同一个环境，进入 $RUN_ROOT/step_3/code/。
+      导出 RUN_OUTPUT_ROOT=$RUN_ROOT/step_7、DATASET_DIR、MODEL_DIR，本轮结果和验证产物写入对应步骤目录。
+      step_5、step_6、step_7 必须先激活 step_4 创建的同一个环境；不得裸用 python、pip 执行项目命令。
+      mode=cpu 时跳过 CUDA 编译，仅 CPU 推理验证。
+      mode!=cpu 时使用 step_0.arch_list 设置 TORCH_CUDA_ARCH_LIST。
+      抓取 Loss、Accuracy、VRAM、每步耗时，并与 step_1 Baseline 对比。
+      记录 step_7 起止时间，以及每个实际阶段的 ISO-8601 started_at/ended_at、duration_hours、resource_type、
+      step_0 实测 device_model、实际 device_count 和 device_hours（duration_hours × device_count）。
+      CPU device_model 使用 step_0.cpu_model；CPU device_count 表示显式分配的逻辑核，必须记录命令、配置或环境变量
+      形式的 device_count_evidence。无法提供分配证据时，不得计算 CPU-hours，也不得用 cpu_cores 总量猜测。
+      跟踪阶段完整性；无效、被拒绝或 CPU 分配证据缺失的阶段必须保留校验说明，不得静默从累计中删除。
+      这类缺口在 step_8 阻断设备小时比例和节省结论；其他证据独立完整时，墙钟比较可独立保留。
+      step_7 结束时计算 step_7_hours 与从 step_3 起点开始的 end_to_end_hours；跳过阶段不得伪造耗时。
+      随后强制执行 validation_preflight、reference_acquisition、prediction_acquisition、field_alignment、
+      quantitative_validation、physics_validation、validation_artifacts、claim_gate 八阶段。
+      Reynolds 数、网格、时间步、边界条件或 ensemble 数量不同阻断直接比较；容差只能来自论文、补充材料、官方代码或用户确认。
+      向 RUN_OUTPUT_ROOT 输出 validation_result.json 和三联图、切线图、误差演化图、适用统计图。软件运行成功至多为 software_runnable。
+      多案例计划逐 case 保存验证结果，再聚合成统一 validation_result.json；总体 claim 取最低可信等级。
+      完成原始数值、坐标和单位对齐后调用 ar24-result-figure-reproduction，在同一环境按 paper_result_figure_specs.json
+      重绘论文实验结果图。禁止使用截图反推数据、eval 或 shell 字符串；官方脚本必须位于已审计 code/ 内。
+      输出 $RUN_ROOT/step_7/figures/figure_reproduction_result.json，并将成功图片以 role=paper_result_figure
+      合并到资产清单、实验详情和 validation_artifacts。目标图未全部 passed 时本轮最高只能 partial；
+      无目标图时显式 skipped_not_applicable。SSH 模式在远端生成并在报告前同步全部图片和 JSON。
+      CCI 模式必须先释放构建实例、创建并实测 GPU 执行实例；实测差异未确认时禁止 step_7。step_7.5 保留 GPU 并显示仍在计费。
+    expected_output: "执行与强制验证完成，validation_result.json、figure_reproduction_result.json、图表、算力台账和 claim level 已记录。"
+
+  - id: step_7_5_report_decision
+    name: "报告前确认与多轮执行决策"
+    depends_on: [step_7_execution]
+    instruction: |
+      这是强制暂停点但不增加看板节点。step_3 至 step_6 失败时也要把已开始轮次标为 failed 后进入本暂停点，不得进入 step_7。
+      使用 execution_history.py finish-run 保存 passed/partial/failed/skipped 状态、逐案例结果、实验详情、compute_usage、
+      scientific_repro_contract、artifact_manifest、validation_result、figure_reproduction_result、terminal_summary 和 RUN_OUTPUT_ROOT。
+      passed 必须有完整 preparation、逐案例结果、实验详情、算力、科学契约、资产清单、七阶段验证和全部目标结果图；
+      failed/skipped 必须写明真实原因与证据，后续未执行准备步骤写 not_reached。
+      finish-run 必须原子写入终态并直接返回 board、pause_required=true、prompt 和 confirmation_id；把这些内容原样展示，
+      把看板 step_8 标为“⏸等待用户确认”且不得显示正在执行，然后立即结束当前回复。标准流程不得依赖第二次可选调用，
+      不得在同一回复中调用 decide、进入 step_8 或生成任何最终报告。
+      用户的新回复选择 1 时，把 confirmation_id 与用户原始回复传给 decide，记录 explicit_user_reply 和
+      generate_report，再执行 validate --for-report；选择 2 时保存确认凭据并记录 continue_existing，
+      随即 reserve-run --source-run-id <previous_run_id> 后循环回 step_2.5。
+      选择 3 时区分执行类和报告类：执行类先预留新 run_id，再转换为 CUSTOM-### 候选，经审计和用户确认后 bind-plan；
+      报告类写入 report_requirements 后由 decide 原子生成新的提示和确认编号，原样展示并再次暂停。request-decision
+      仅用于恢复旧 awaiting_prompt 台账或重新显示已有提示，不能创建新门或授权报告。没有用户新回复、沉默、超时、时间不足、
+      token/上下文预算不足或 agent 想尽快结束时均保持 awaiting_user，禁止代替用户选择 1。
+      存在 running、损坏台账、无终态轮次或缺少提示展示/一次性确认编号/用户原始回复证据时禁止生成报告。
+      schema 1.0 历史台账默认阻断；只允许 repair-run 使用用户提供的真实证据显式修复为 1.1，修复后重新确认 DOCX。
+    expected_output: "已获得明确 generate_report 授权；或已创建继续执行/自定义计划流程并保持 step_8 暂停。"
+
+  - id: step_8_report
+    name: "生成 Word 复现报告"
+    depends_on: [step_7_5_report_decision]
+    instruction: |
+      首先用 execution_history.py validate --for-report 校验台账与用户授权；未通过时禁止调用报告生成器。
+      validate --for-report 和报告生成器都必须在台账目录复核 <repo_name>_Audit_Report.md 存在、非空且 UTF-8 可读，
+      并确认同目录 audit_score.json 是有效的 sciml_physics 对象且包含 overall_score、verdict、dimensions、
+      resource_gate、physics_gate；不合格时返回 step_1 重做审计，禁止在 step_8 临时编造。
+      报告授权必须同时包含 prompt_displayed_at、confirmation_id、decision_source=explicit_user_reply、
+      用户明确选择 DOCX 的 user_response 和 decision=generate_report。
+      按 PIPELINE.md 将论文披露对象与复现实测台账组装为 ar24-repro-report 接受的 compute_usage。
+      compute_usage 包含 paper、reproduction、comparison；reproduction 包含 end_to_end_hours、step_7_hours 和 phases。
+      显式比较论文与复现 scope。双方使用相同 scope_detail schema：ML v1 比较七个规范字段；v2 比较相同的
+      training/inference/numerical_simulation/experimental_fitting/coupled_simulation 类别及类别内字段。缺失、null、
+      空字符串、unknown、undisclosed 均阻断比较；每个规范字段都必须非空，训练类别的 epochs 或 steps 至少一项必须为实质值。
+      任何比例都要求非空 `evidence` 与非空 `source_page`。设备小时比例要求论文正整数 `device_count`，即使论文有
+      显式 `device_hours` 也不例外；墙钟时间、数量和显式总数同时存在时必须校验其等于墙钟时间 × 设备数量，不一致则拒绝。
+      自由文本、细节缺失/不一致、disclosed=false 或 provenance 不足时，
+      comparison.comparable=false，reason 以“不可直接比较”开头，且不得生成比例或节省结论。
+      调用 ar24-repro-report 时传入 execution_run_history.json；它是执行计划、核心验证、实验产物、算力和模型来源对比的唯一事实源。
+      按 sequence 和每轮计划顺序保留所有 passed、partial、failed、skipped 轮次，排除 planned 和从未执行的候选。
+      同名实验按 (run_id, case_name) 独立展示；每轮读取自己的 scientific_repro_contract、artifact_manifest、
+      validation_result、compute_usage 和 experiment_details，不得跨轮猜测或复制未归属证据。
+      整篇正文跨所有实际终态轮次最多精选 8 张有效实验图片，可以少于 8 张但不得超过；paper_result_figure
+      优先进入正文，表格不占图片额度，
+      并最多预览 20 行、10 列。附录 A 按路径或 SHA-256 去重后嵌入全部实验图片并保留全部 run_id；
+      缺失、损坏或远程未同步图片列出路径和失败原因。
+      算力累计值只表示会话成本，每轮独立判断可比性，不得跨不同实验范围合并效率比例。
+      文件缺失或格式不可预览时标注缺口，不得阻断报告生成。
+      backend=ssh 或 backend=cci 时，最终报告必须同步回本地工作区，并给出本地路径和远端原始路径。
+      唯一最终报告输出为 <repo_name>_final_reproduce_report.docx，并必须把 <repo_name>_Audit_Report.md 正文嵌入固定附录；
+      DOCX 固定采用封面、目录、十章正文、附录 A 全部实验产出图片、附录 B 输出文件索引和附录 C 完整项目审计报告；
+      正文依次为执行摘要、复现环境与算力配置、论文模型与实验概述、代码审计与可行性评估、依赖环境准备、
+      数据与模型权重、执行详情与产物、代码缺陷与排坑自愈指南、论文复现结论、后续建议；
+      全文中文统一宋体（SimSun），英文、数字及拉丁字符统一 Times New Roman，调用方不得覆盖；
+      DOCX 生成失败、依赖缺失或时间不足时只能报错或暂停，
+      禁止创建 *_final_reproduce_report.md、*_final_report.md 或任何 Markdown/纯文本替代报告。
+      最终产物集固定包含该 DOCX 与 <repo_name>_Audit_Report.md，成功输出必须分别列出两份文件路径；
+      backend=ssh 或 backend=cci 时两份文件必须一起同步回本地，任一缺失都不得结项；CCI 同步校验后主动释放 GPU/恢复实例。
+    expected_output: "Word 报告路径与 compute_usage 可比性状态。"

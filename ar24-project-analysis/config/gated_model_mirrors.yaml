@@ -1,0 +1,44 @@
+# ==============================================================================
+# 🔒 Gated Model 镜像映射表 (gated_model_mirrors.yaml)
+# 用于 ar24-project-analysis 扫描 from_pretrained()，并自动推荐非受限替代源。
+#
+# 设计兼容：同时完美支持 PyYAML 解析器与 main.py 内置的轻量无依赖正则解析器。
+# ==============================================================================
+
+meta-llama/Llama-2-7b-hf:
+  status: "gated"
+  mirrors:
+    - "ModelScope: https://modelscope.cn/models/modelscope/Llama-2-7b-ms"
+    - "HF-Mirror: https://hf-mirror.com/meta-llama/Llama-2-7b-hf"
+    - "内网缓存: http://10.201.85.65/shares/models/Llama-2-7b-hf" # 👈 您可在内网架设静态文件服务器，直接实现秒级拉起
+
+meta-llama/Meta-Llama-3-8B-Instruct:
+  status: "gated"
+  mirrors:
+    - "ModelScope: https://modelscope.cn/models/LLM-Research/Meta-Llama-3-8B-Instruct"
+    - "HF-Mirror: https://hf-mirror.com/meta-llama/Meta-Llama-3-8B-Instruct"
+    - "内网缓存: http://10.201.85.65/shares/models/Meta-Llama-3-8B-Instruct"
+
+google/gemma-7b-it:
+  status: "gated"
+  mirrors:
+    - "ModelScope: https://modelscope.cn/models/LLM-Research/gemma-7b-it"
+    - "HF-Mirror: https://hf-mirror.com/google/gemma-7b-it"
+
+google/gemma-2-9b-it:
+  status: "gated"
+  mirrors:
+    - "ModelScope: https://modelscope.cn/models/LLM-Research/gemma-2-9b-it"
+    - "HF-Mirror: https://hf-mirror.com/google/gemma-2-9b-it"
+
+mistralai/Mixtral-8x7B-Instruct-v0.1:
+  status: "gated"
+  mirrors:
+    - "ModelScope: https://modelscope.cn/models/LLM-Research/Mixtral-8x7B-Instruct-v0.1"
+    - "HF-Mirror: https://hf-mirror.com/mistralai/Mixtral-8x7B-Instruct-v0.1"
+
+cohere-ai/Command-R-Plus:
+  status: "gated"
+  mirrors:
+    - "ModelScope: https://modelscope.cn/models/LLM-Research/Command-R-Plus"
+    - "HF-Mirror: https://hf-mirror.com/cohere-ai/Command-R-Plus"

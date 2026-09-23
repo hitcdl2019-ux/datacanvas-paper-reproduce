@@ -1,0 +1,22 @@
+name: ar24-project-checkout
+version: "2.0.0"
+description: "AR24 v3 step_3：在当前 run 的 step_3/code 拉取或独立物化代码。"
+entry_point: "checkout_runner.py:run_local_checkout"
+runners:
+  checkout: "checkout_runner.py"
+shared_modules:
+  backend_executor: "backend_executor.py"
+  path_context: "path_context.py"
+parameters:
+  type: object
+  properties:
+    github_url: {type: string, description: "GitHub 仓库地址"}
+    repo_name: {type: string, description: "仓库目录名"}
+    backend: {type: string, enum: ["local", "ssh", "cci"], default: "local"}
+    ssh: {type: string, description: "backend=ssh 时使用的 SSH 连接命令"}
+    cci_state: {type: string, description: "backend=cci 时使用的本地安全状态文件"}
+    history: {type: string, description: "主流水线 execution_run_history.json 路径"}
+    run_id: {type: string, description: "主流水线当前执行轮次 ID"}
+    reuse_source_code: {type: string, description: "可选；上一终态 run 的 step_3/code，用于独立 clone 复用"}
+    standalone: {type: boolean, default: false, description: "仅脱离主流水线独立运行时显式启用"}
+  required: ["github_url", "repo_name", "run_id"]

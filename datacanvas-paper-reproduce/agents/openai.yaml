@@ -1,0 +1,7 @@
+interface:
+  display_name: "DataCanvas Paper Reproduce"
+  short_description: "DataCanvas 论文/项目自动复现入口"
+  default_prompt: "Use $datacanvas-paper-reproduce to reproduce this paper or GitHub project, pausing for backend and DOCX confirmation gates."
+
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,12 @@
+name: ar24-readme-parser
+version: "1.0.0"
+description: "AR24 README 通用解析：生成保留行号的 AST、语义归类和各 step 派生字段。"
+entry_point: "readme_parser.py:analyze_readme_text"
+shared_modules:
+  readme_parser: "readme_parser.py"
+parameters:
+  type: object
+  properties:
+    text: {type: string, description: "README 原文"}
+    source: {type: string, default: "README.md", description: "README 来源路径或 URL"}
+  required: ["text"]

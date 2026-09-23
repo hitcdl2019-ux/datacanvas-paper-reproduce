@@ -1,0 +1,4 @@
+interface:
+  display_name: "AR24 论文结果图复现"
+  short_description: "按论文规范用真实实验数据重绘结果图并执行严格一致性门禁"
+  default_prompt: "Use $ar24-result-figure-reproduction to reproduce paper result figures from verified experiment data."
