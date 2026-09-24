@@ -150,7 +150,7 @@ CCI（Container Computing Instance）是九章智算云提供的容器计算实�
 
    ![账号概览与实名认证入口](assets/cci/02-account-verification.png)
 
-3. 访问：`https://www.alayanew.com/?utm_source=ar24`，进入 **头像 → 权限管理 → 访问管理**，点击 **创建 AccessKey**。
+3. 访问：`https://www.alayanew.com`，进入 **头像 → 权限管理 → 访问管理**，点击 **创建 AccessKey**。
 
    ![访问管理中创建 AccessKey](assets/cci/03-access-management.png)
 
@@ -179,10 +179,6 @@ nano ~/.config/datacanvas-paper-reproduce/cci.env
 export ALAYANEW_ACCESS_KEY="<your-access-key-id>"
 export ALAYANEW_SECRET_KEY="<your-access-key-secret>"
 
-# 可选：如平台或管理员提供 Access Token / 私有 API 地址，再配置
-# export ALAYANEW_ACCESS_TOKEN="<your-access-token>"
-# export ALAYANEW_BASE_URL="https://api.alayanew.com"
-
 # 推荐默认资源参数；实际资源仍以 preflight 查询和用户确认结果为准
 export ALAYANEW_AIDC_ID=5
 export ALAYANEW_CCI_PRODUCT_CODE="PRD-CCI-5-5"
@@ -208,12 +204,10 @@ source ~/.config/datacanvas-paper-reproduce/cci.env
 | --- | --- | --- |
 | `ALAYANEW_ACCESS_KEY` | 是 | CCI Open API AccessKey ID。 |
 | `ALAYANEW_SECRET_KEY` | 是 | CCI Open API AccessKey Secret。 |
-| `ALAYANEW_ACCESS_TOKEN` | 否 | 如平台额外提供 token，可配置。 |
-| `ALAYANEW_BASE_URL` | 否 | API 地址，默认 `https://api.alayanew.com`。 |
-| `ALAYANEW_AIDC_ID` | 建议 | 智算中心 ID，用于筛选资源、镜像和 NAS。 |
-| `ALAYANEW_CCI_PRODUCT_CODE` | 建议 | 期望 CCI 产品规格编码。 |
-| `ALAYANEW_CCI_GPU_COUNT` | 建议 | 期望 GPU 数量。 |
-| `ALAYANEW_CCI_IMAGE` | 建议 | 期望使用的容器镜像。 |
+| `ALAYANEW_AIDC_ID` | 是 | 智算中心 ID，用于筛选资源、镜像和 NAS。 |
+| `ALAYANEW_CCI_PRODUCT_CODE` | 是 | 期望 CCI 产品规格编码。 |
+| `ALAYANEW_CCI_GPU_COUNT` | 是 | 期望 GPU 数量。 |
+| `ALAYANEW_CCI_IMAGE` | 是 | 期望使用的容器镜像。 |
 
 Open API 使用 HMAC-SHA256 签名认证；本仓库脚本会基于 `ALAYANEW_ACCESS_KEY` 和 `ALAYANEW_SECRET_KEY` 自动生成请求签名，用户无需手工拼接 `Authorization` 头。
 
