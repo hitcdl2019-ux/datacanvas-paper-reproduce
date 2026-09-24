@@ -25,27 +25,9 @@ $datacanvas-paper-reproduce
 
 ## 项目核心流程
 
-```text
-用户提供论文 / GitHub 仓库
-        ↓
-智能体调用 $datacanvas-paper-reproduce
-        ↓
-公共复现预检
-        ↓
-论文解析 + 项目审计
-        ↓
-用户选择并确认算力后端：local / ssh / cci
-        ↓
-代码拉取、依赖准备、数据与权重准备
-        ↓
-执行复现实验 / smoke test
-        ↓
-结果验证、图表复现、执行台账记录
-        ↓
-用户确认是否生成最终 Word 报告
-        ↓
-输出审计报告、实验产物和复现报告
-```
+![DataCanvas Paper Reproduce 项目核心流程图](assets/core-workflow.svg)
+
+该流程图概括了从用户输入论文或 GitHub 仓库，到预检、解析审计、后端确认、环境与资产准备、实验执行、结果验证和报告交付的完整闭环。
 
 关键约束：
 
