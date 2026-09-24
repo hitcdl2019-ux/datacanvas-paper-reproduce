@@ -1,38 +1,146 @@
 # DataCanvas Paper Reproduce
 
-DataCanvas Paper Reproduce 是面向论文与 GitHub 项目复现的智能体 Skill 套件，重点支持用户在 **CCI 容器 GPU 算力资源** 上完成代码审计、环境准备、实验执行、结果验证与复现报告生成。
+DataCanvas Paper Reproduce 是面向论文与 GitHub 项目复现的智能体 Skill 套件，适用于 Claude Code、Codex、OpenCode、OpenClaw 等代码智能体。
 
-推荐入口：
+它将“复现一篇论文”或“跑通一个开源项目”的过程拆解为标准化工作流，覆盖项目审计、论文解析、环境准备、数据与权重准备、实验执行、结果验证和报告生成等环节，帮助用户更系统地完成复现任务。
+
+推荐调用入口：
 
 ```text
 $datacanvas-paper-reproduce
 ```
 
-本仓库适合已经使用或计划开通 CCI 容器算力的用户。用户完成 CCI 权限申请并配置凭据后，Claude Code、Codex、OpenCode、OpenClaw 等智能体即可通过本 skill 调用远程 GPU 资源执行复现任务。
+## 项目核心功能
 
-## 核心流程
+- **论文与项目解析**：读取论文、README 和代码结构，提取 baseline、超参数、依赖、数据集和模型权重需求。
+- **复现可行性审计**：识别依赖风险、资源需求、受限数据/模型、潜在阻断项，并生成项目审计报告。
+- **多算力来源支持**：
+  - **本地算力**：使用本机 CPU / GPU 进行复现测试；
+  - **SSH 远程算力**：连接已有远程 GPU 服务器；
+  - **CCI 容器算力**：通过 CCI 容器实例远程使用 GPU 算力资源。
+- **环境与资产准备**：按流程准备代码、依赖环境、数据集、模型权重和运行目录。
+- **实验执行与验证**：执行 smoke test、推理、微调或数值实验，记录日志、指标、耗时和设备信息。
+- **多轮执行台账**：保留每次尝试的 run id、执行状态、失败原因和产物路径，避免覆盖历史记录。
+- **复现报告生成**：在用户明确确认后，生成 Word 格式复现报告。
+
+## 项目核心流程
 
 ```text
-开通 CCI 权限并创建 AccessKey
+用户提供论文 / GitHub 仓库
         ↓
-在本地或智能体运行环境配置 ALAYANEW_* 凭据
+智能体调用 $datacanvas-paper-reproduce
         ↓
-安装 datacanvas-paper-reproduce 与 ar24-* skills
+公共复现预检
         ↓
-让智能体调用 $datacanvas-paper-reproduce
+论文解析 + 项目审计
         ↓
-用户明确确认使用 CCI 后端和资源规格
+用户选择并确认算力后端：local / ssh / cci
         ↓
-自动创建 / 连接 / 使用 / 释放 CCI 容器 GPU 资源
+代码拉取、依赖准备、数据与权重准备
         ↓
-完成论文或 GitHub 项目复现，并按需生成 Word 报告
+执行复现实验 / smoke test
+        ↓
+结果验证、图表复现、执行台账记录
+        ↓
+用户确认是否生成最终 Word 报告
+        ↓
+输出审计报告、实验产物和复现报告
 ```
 
-## 1. 获取 CCI 权限
+关键约束：
+
+- 后端选择必须由用户明确确认；沉默、超时或上下文不足不构成授权。
+- 使用 CCI 等可能产生费用的资源前，必须展示资源信息并等待用户确认。
+- 最终 DOCX 报告必须在实验结束后由用户再次明确授权生成。
+- 每轮执行都应保留独立记录，失败、部分完成和用户中止也不能覆盖旧轮次。
+
+## 安装使用
+
+### 1. 克隆仓库
+
+```bash
+git clone https://github.com/hitcdl2019-ux/datacanvas-paper-reproduce.git
+cd datacanvas-paper-reproduce
+```
+
+### 2. 安装到智能体 skills 目录
+
+#### Codex
+
+```bash
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
+for skill_dir in datacanvas-* ar24-*; do
+  [ -d "$skill_dir" ] || continue
+  ln -sfn "$(pwd)/$skill_dir" "${CODEX_HOME:-$HOME/.codex}/skills/$(basename "$skill_dir")"
+done
+```
+
+#### Claude Code
+
+```bash
+mkdir -p "$HOME/.claude/skills"
+for skill_dir in datacanvas-* ar24-*; do
+  [ -d "$skill_dir" ] || continue
+  ln -sfn "$(pwd)/$skill_dir" "$HOME/.claude/skills/$(basename "$skill_dir")"
+done
+```
+
+#### OpenCode
+
+```bash
+mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills"
+for skill_dir in datacanvas-* ar24-*; do
+  [ -d "$skill_dir" ] || continue
+  ln -sfn "$(pwd)/$skill_dir" "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/$(basename "$skill_dir")"
+done
+```
+
+#### OpenClaw
+
+```bash
+mkdir -p "$HOME/.openclaw/skills"
+for skill_dir in datacanvas-* ar24-*; do
+  [ -d "$skill_dir" ] || continue
+  ln -sfn "$(pwd)/$skill_dir" "$HOME/.openclaw/skills/$(basename "$skill_dir")"
+done
+```
+
+> 如果运行环境不适合软链接，也可以把 `datacanvas-*` 和 `ar24-*` 目录复制到对应智能体的 skills 目录。
+
+### 3. 调用示例
+
+本地算力：
+
+```text
+Use $datacanvas-paper-reproduce to reproduce this GitHub project: <github_url>
+Paper: <paper_url_or_pdf_path>
+Use local backend. Ask me before running any mutable command.
+```
+
+SSH 远程算力：
+
+```text
+Use $datacanvas-paper-reproduce to reproduce this GitHub project: <github_url>
+Paper: <paper_url_or_pdf_path>
+Use SSH backend. I will provide the SSH command when you ask for it.
+```
+
+CCI 容器算力：
+
+```text
+Use $datacanvas-paper-reproduce to reproduce this GitHub project with CCI backend: <github_url>
+Paper: <paper_url_or_pdf_path>
+I have configured ALAYANEW_ACCESS_KEY and ALAYANEW_SECRET_KEY in the environment.
+Please run CCI preflight first, show available resources, and wait for my explicit confirmation before creating any CCI instance.
+```
+
+## CCI 算力申请与配置
+
+如果希望通过本项目使用 DataCanvas / 九章智算云 CCI 容器 GPU 算力，需要先完成 CCI 权限开通和访问参数配置。
+
+### 1. 申请 CCI 权限
 
 CCI（Container Computing Instance）是九章智算云提供的容器计算实例能力，可用于远程连接 GPU 算力资源。
-
-开通流程：
 
 1. 打开官网：`https://www.alayanew.com`，点击页面右下角 **用户注册**，完成账号注册。
 
@@ -54,9 +162,9 @@ CCI（Container Computing Instance）是九章智算云提供的容器计算实�
 
 > 上述截图已做脱敏处理。`AccessKey Secret` 只应保存在本地私有配置或安全凭据系统中，不要提交到 GitHub、AI 社区、README、issue 或对话记录中。
 
-## 2. 配置 CCI 访问参数
+### 2. 配置 CCI 访问参数
 
-本仓库中的 CCI 客户端通过环境变量读取凭据。请在本地创建一个私有环境变量文件，例如：
+创建私有环境变量文件：
 
 ```bash
 mkdir -p ~/.config/datacanvas-paper-reproduce
@@ -94,7 +202,7 @@ chmod 600 ~/.config/datacanvas-paper-reproduce/cci.env
 source ~/.config/datacanvas-paper-reproduce/cci.env
 ```
 
-### 参数说明
+参数说明：
 
 | 环境变量 | 必填 | 说明 |
 | --- | --- | --- |
@@ -109,56 +217,7 @@ source ~/.config/datacanvas-paper-reproduce/cci.env
 
 Open API 使用 HMAC-SHA256 签名认证；本仓库脚本会基于 `ALAYANEW_ACCESS_KEY` 和 `ALAYANEW_SECRET_KEY` 自动生成请求签名，用户无需手工拼接 `Authorization` 头。
 
-## 3. 安装 skill
-
-克隆仓库：
-
-```bash
-git clone https://github.com/hitcdl2019-ux/datacanvas-paper-reproduce.git
-cd datacanvas-paper-reproduce
-```
-
-### Codex
-
-```bash
-mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
-for skill_dir in datacanvas-* ar24-*; do
-  [ -d "$skill_dir" ] || continue
-  ln -sfn "$(pwd)/$skill_dir" "${CODEX_HOME:-$HOME/.codex}/skills/$(basename "$skill_dir")"
-done
-```
-
-### Claude Code
-
-```bash
-mkdir -p "$HOME/.claude/skills"
-for skill_dir in datacanvas-* ar24-*; do
-  [ -d "$skill_dir" ] || continue
-  ln -sfn "$(pwd)/$skill_dir" "$HOME/.claude/skills/$(basename "$skill_dir")"
-done
-```
-
-### OpenCode
-
-```bash
-mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills"
-for skill_dir in datacanvas-* ar24-*; do
-  [ -d "$skill_dir" ] || continue
-  ln -sfn "$(pwd)/$skill_dir" "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/$(basename "$skill_dir")"
-done
-```
-
-### OpenClaw
-
-```bash
-mkdir -p "$HOME/.openclaw/skills"
-for skill_dir in datacanvas-* ar24-*; do
-  [ -d "$skill_dir" ] || continue
-  ln -sfn "$(pwd)/$skill_dir" "$HOME/.openclaw/skills/$(basename "$skill_dir")"
-done
-```
-
-## 4. 验证 CCI 配置
+### 3. 验证 CCI 配置
 
 加载凭据：
 
@@ -192,26 +251,7 @@ preflight 成功后，输出会包含：
 
 > CCI 创建实例前必须经过 preflight，并由用户在智能体对话中明确确认资源规格。脚本不会因为默认值、沉默或超时而自动创建计费资源。若 preflight 提示缺少 `existing_writable_nas`，需要先联系平台或管理员开通可写 NAS 存储。
 
-## 5. 调用智能体执行复现
-
-推荐提示词：
-
-```text
-Use $datacanvas-paper-reproduce to reproduce this GitHub project with CCI backend: <github_url>
-Paper: <paper_url_or_pdf_path>
-I have configured ALAYANEW_ACCESS_KEY and ALAYANEW_SECRET_KEY in the environment.
-Please run the required CCI preflight first, show available resources, and wait for my explicit confirmation before creating any CCI instance.
-At step_7.5, show the result board and wait for my explicit decision before generating DOCX.
-```
-
-如果没有论文，只想先跑通 GitHub 项目：
-
-```text
-Use $datacanvas-paper-reproduce to run a CCI-backed smoke test for this GitHub project: <github_url>
-Ask me to confirm the CCI resource selection before creating the container.
-```
-
-## 6. 复现产物
+## 复现产物
 
 根据任务进度，可能生成：
 
@@ -221,7 +261,7 @@ Ask me to confirm the CCI resource selection before creating the container.
 - 实验日志、指标、图表和中间文件
 - 用户确认后的 Word 报告：`<repo_name>_final_reproduce_report.docx`
 
-## 7. 安全与费用提醒
+## 安全与费用提醒
 
 - 不要把 `ALAYANEW_ACCESS_KEY`、`ALAYANEW_SECRET_KEY`、token、SSH 密码或私钥提交到仓库。
 - 不要在公开 issue、AI 社区评论、README 或 prompt 中粘贴真实凭据。
@@ -229,9 +269,7 @@ Ask me to confirm the CCI resource selection before creating the container.
 - 复现结束后应确认 CCI 实例已释放，避免持续计费。
 - 受限数据集、闭源模型权重和商业软件许可证需要用户自行确认访问权限。
 
-## 8. 架构说明
-
-本仓库包含一个对外入口和若干内部流水线模块：
+## 架构说明
 
 ```text
 datacanvas-paper-reproduce/   # DataCanvas 品牌入口，用户优先调用
@@ -251,19 +289,11 @@ ar24-repro-report/            # Word 报告生成
 $datacanvas-paper-reproduce
 ```
 
-## 9. 本地校验
+## 本地校验
 
 ```bash
 for skill_dir in datacanvas-* ar24-*; do
   [ -d "$skill_dir" ] || continue
   python3 /path/to/quick_validate.py "$skill_dir"
 done
-```
-
-Python 语法烟测：
-
-```bash
-python3 -m compileall -q datacanvas-* ar24-*
-find . -name '__pycache__' -type d -prune -exec rm -rf {} +
-find . -name '*.pyc' -delete
 ```
