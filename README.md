@@ -1,42 +1,62 @@
+<div align="center">
+
 # DataCanvas Paper Reproduce
 
-DataCanvas Paper Reproduce 是面向论文与 GitHub 项目复现的智能体 Skill 套件，适用于 Claude Code、Codex、OpenCode、OpenClaw 等代码智能体。
+**面向论文与 GitHub 项目复现的智能体 Skill 套件**
 
-它将“复现一篇论文”或“跑通一个开源项目”的过程拆解为标准化工作流，覆盖项目审计、论文解析、环境准备、数据与权重准备、实验执行、结果验证和报告生成等环节，帮助用户更系统地完成复现任务。
+适用于 **Claude Code / Codex / OpenCode / OpenClaw** 等代码智能体，将“复现一篇论文”或“跑通一个开源项目”的过程拆解为标准化工作流，覆盖项目审计、论文解析、环境准备、数据与权重准备、实验执行、结果验证和报告生成等环节，帮助用户更系统地完成复现任务。
 
-推荐调用入口：
+<p>
+  <img alt="Skill Suite" src="https://img.shields.io/badge/Skill%20Suite-DataCanvas-315CFF?style=for-the-badge">
+  <img alt="Workflow" src="https://img.shields.io/badge/Workflow-Paper%20Reproduce-00A870?style=for-the-badge">
+  <img alt="Backends" src="https://img.shields.io/badge/Backends-local%20%7C%20ssh%20%7C%20cci-FFB020?style=for-the-badge">
+</p>
 
 ```text
 $datacanvas-paper-reproduce
 ```
 
-## 项目核心功能
+</div>
 
-- **论文与项目解析**：读取论文、README 和代码结构，提取 baseline、超参数、依赖、数据集和模型权重需求。
-- **复现可行性审计**：识别依赖风险、资源需求、受限数据/模型、潜在阻断项，并生成项目审计报告。
-- **多算力来源支持**：
-  - **本地算力**：使用本机 CPU / GPU 进行复现测试；
-  - **SSH 远程算力**：连接已有远程 GPU 服务器；
-  - **CCI 容器算力**：通过 CCI 容器实例远程使用 GPU 算力资源。
-- **环境与资产准备**：按流程准备代码、依赖环境、数据集、模型权重和运行目录。
-- **实验执行与验证**：执行 smoke test、推理、微调或数值实验，记录日志、指标、耗时和设备信息。
-- **多轮执行台账**：保留每次尝试的 run id、执行状态、失败原因和产物路径，避免覆盖历史记录。
-- **复现报告生成**：在用户明确确认后，生成 Word 格式复现报告。
+---
 
-## 项目核心流程
+## ✨ 项目核心功能
+
+| 能力 | 说明 |
+| --- | --- |
+| **论文与项目解析** | 读取论文、README 和代码结构，提取 baseline、超参数、依赖、数据集和模型权重需求。 |
+| **复现可行性审计** | 识别依赖风险、资源需求、受限数据/模型、潜在阻断项，并生成项目审计报告。 |
+| **环境与资产准备** | 按流程准备代码、依赖环境、数据集、模型权重和运行目录。 |
+| **实验执行与验证** | 执行 smoke test、推理、微调或数值实验，记录日志、指标、耗时和设备信息。 |
+| **多轮执行台账** | 保留每次尝试的 run id、执行状态、失败原因和产物路径，避免覆盖历史记录。 |
+| **复现报告生成** | 在用户明确确认后，生成 Word 格式复现报告。 |
+
+### 🧠 多算力来源支持
+
+| 后端 | 适用场景 |
+| --- | --- |
+| **本地算力** | 使用本机 CPU / GPU 进行复现测试。 |
+| **SSH 远程算力** | 连接已有远程 GPU 服务器。 |
+| **CCI 容器算力** | 通过 CCI 容器实例远程使用 GPU 算力资源。 |
+
+---
+
+## 🚀 项目核心流程
 
 ![DataCanvas Paper Reproduce 项目核心流程图](assets/core-workflow.svg)
 
-该流程图概括了从用户输入论文或 GitHub 仓库，到预检、解析审计、后端确认、环境与资产准备、实验执行、结果验证和报告交付的完整闭环。
+> 该流程图概括了从用户输入论文或 GitHub 仓库，到预检、解析审计、后端确认、环境与资产准备、实验执行、结果验证和报告交付的完整闭环。
 
-关键约束：
+### 🔐 关键约束
 
 - 后端选择必须由用户明确确认；沉默、超时或上下文不足不构成授权。
 - 使用 CCI 等可能产生费用的资源前，必须展示资源信息并等待用户确认。
 - 最终 DOCX 报告必须在实验结束后由用户再次明确授权生成。
 - 每轮执行都应保留独立记录，失败、部分完成和用户中止也不能覆盖旧轮次。
 
-## 安装使用
+---
+
+## ⚡ 安装使用
 
 ### 1. 克隆仓库
 
@@ -47,7 +67,8 @@ cd datacanvas-paper-reproduce
 
 ### 2. 安装到智能体 skills 目录
 
-#### Codex
+<details open>
+<summary><strong>Codex</strong></summary>
 
 ```bash
 mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
@@ -57,7 +78,10 @@ for skill_dir in datacanvas-* ar24-*; do
 done
 ```
 
-#### Claude Code
+</details>
+
+<details>
+<summary><strong>Claude Code</strong></summary>
 
 ```bash
 mkdir -p "$HOME/.claude/skills"
@@ -67,7 +91,10 @@ for skill_dir in datacanvas-* ar24-*; do
 done
 ```
 
-#### OpenCode
+</details>
+
+<details>
+<summary><strong>OpenCode</strong></summary>
 
 ```bash
 mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills"
@@ -77,7 +104,10 @@ for skill_dir in datacanvas-* ar24-*; do
 done
 ```
 
-#### OpenClaw
+</details>
+
+<details>
+<summary><strong>OpenClaw</strong></summary>
 
 ```bash
 mkdir -p "$HOME/.openclaw/skills"
@@ -87,11 +117,13 @@ for skill_dir in datacanvas-* ar24-*; do
 done
 ```
 
+</details>
+
 > 如果运行环境不适合软链接，也可以把 `datacanvas-*` 和 `ar24-*` 目录复制到对应智能体的 skills 目录。
 
 ### 3. 调用示例
 
-本地算力：
+#### 本地算力
 
 ```text
 Use $datacanvas-paper-reproduce to reproduce this GitHub project: <github_url>
@@ -99,7 +131,7 @@ Paper: <paper_url_or_pdf_path>
 Use local backend. Ask me before running any mutable command.
 ```
 
-SSH 远程算力：
+#### SSH 远程算力
 
 ```text
 Use $datacanvas-paper-reproduce to reproduce this GitHub project: <github_url>
@@ -107,7 +139,7 @@ Paper: <paper_url_or_pdf_path>
 Use SSH backend. I will provide the SSH command when you ask for it.
 ```
 
-CCI 容器算力：
+#### CCI 容器算力
 
 ```text
 Use $datacanvas-paper-reproduce to reproduce this GitHub project with CCI backend: <github_url>
@@ -116,7 +148,9 @@ I have configured ALAYANEW_ACCESS_KEY and ALAYANEW_SECRET_KEY in the environment
 Please run CCI preflight first, show available resources, and wait for my explicit confirmation before creating any CCI instance.
 ```
 
-## CCI 算力申请与配置
+---
+
+## ☁️ CCI 算力申请与配置
 
 如果希望通过本项目使用 DataCanvas / 九章智算云 CCI 容器 GPU 算力，需要先完成 CCI 权限开通和访问参数配置。
 
@@ -227,17 +261,25 @@ preflight 成功后，输出会包含：
 
 > CCI 创建实例前必须经过 preflight，并由用户在智能体对话中明确确认资源规格。脚本不会因为默认值、沉默或超时而自动创建计费资源。若 preflight 提示缺少 `existing_writable_nas`，需要先联系平台或管理员开通可写 NAS 存储。
 
-## 复现产物
+---
+
+## 📦 复现产物
 
 根据任务进度，可能生成：
 
-- 项目审计报告：`<repo_name>_Audit_Report.md`
-- 执行历史台账：`execution_run_history.json`
-- CCI 资源状态与脱敏证据：`cci_state.json` 及相关 step 产物
-- 实验日志、指标、图表和中间文件
-- 用户确认后的 Word 报告：`<repo_name>_final_reproduce_report.docx`
+| 产物 | 路径 / 说明 |
+| --- | --- |
+| 项目审计报告 | `<repo_name>_Audit_Report.md` |
+| 执行历史台账 | `execution_run_history.json` |
+| CCI 资源状态与脱敏证据 | `cci_state.json` 及相关 step 产物 |
+| 实验日志、指标、图表和中间文件 | 根据任务进度生成 |
+| 用户确认后的 Word 报告 | `<repo_name>_final_reproduce_report.docx` |
 
-## 安全与费用提醒
+---
+
+## 🛡️ 安全与费用提醒
+
+> 复现流程涉及算力资源、访问凭据和受限数据，请始终保持最小授权和明确确认。
 
 - 不要把 `ALAYANEW_ACCESS_KEY`、`ALAYANEW_SECRET_KEY`、token、SSH 密码或私钥提交到仓库。
 - 不要在公开 issue、AI 社区评论、README 或 prompt 中粘贴真实凭据。
@@ -245,7 +287,9 @@ preflight 成功后，输出会包含：
 - 复现结束后应确认 CCI 实例已释放，避免持续计费。
 - 受限数据集、闭源模型权重和商业软件许可证需要用户自行确认访问权限。
 
-## 架构说明
+---
+
+## 🧩 架构说明
 
 ```text
 datacanvas-paper-reproduce/   # DataCanvas 品牌入口，用户优先调用
@@ -265,7 +309,9 @@ ar24-repro-report/            # Word 报告生成
 $datacanvas-paper-reproduce
 ```
 
-## 本地校验
+---
+
+## ✅ 本地校验
 
 ```bash
 for skill_dir in datacanvas-* ar24-*; do
