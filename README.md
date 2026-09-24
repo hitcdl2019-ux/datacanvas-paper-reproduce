@@ -34,16 +34,25 @@ CCI（Container Computing Instance）是九章智算云提供的容器计算实�
 
 开通流程：
 
-1. 打开官网：`https://www.alayanew.com`
-2. 点击页面右下角 **用户注册**，完成账号注册。
-3. 登录后，进入右上角头像菜单，选择 **账号概览 → 实名认证**，完成个人实名认证。
-4. 访问：`https://www.alayanew.com/?utm_source=ar24`
-5. 进入 **头像 → 权限管理 → 访问管理 → 创建 AccessKey**。
-6. 创建后保存以下两项：
+1. 打开官网：`https://www.alayanew.com`，点击页面右下角 **用户注册**，完成账号注册。
+
+   ![九章智算云注册入口](assets/cci/01-alayanew-home-register.jpeg)
+
+2. 登录后，进入右上角头像菜单，选择 **账号概览 → 实名认证**，完成个人实名认证。
+
+   ![账号概览与实名认证入口](assets/cci/02-account-verification.png)
+
+3. 访问：`https://www.alayanew.com/?utm_source=ar24`，进入 **头像 → 权限管理 → 访问管理**，点击 **创建 AccessKey**。
+
+   ![访问管理中创建 AccessKey](assets/cci/03-access-management.png)
+
+4. 创建后保存以下两项：
    - `AccessKey ID`
    - `AccessKey Secret`
 
-> `AccessKey Secret` 只应保存在本地私有配置或安全凭据系统中，不要提交到 GitHub、AI 社区、README、issue 或对话记录中。
+   ![创建后保存 AccessKey 信息](assets/cci/04-create-access-key.png)
+
+> 上述截图已做脱敏处理。`AccessKey Secret` 只应保存在本地私有配置或安全凭据系统中，不要提交到 GitHub、AI 社区、README、issue 或对话记录中。
 
 ## 2. 配置 CCI 访问参数
 
