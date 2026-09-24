@@ -4,7 +4,7 @@
 
 它把“帮我复现这篇论文 / 跑通这个开源项目”拆解为一套可审计、可暂停、可追踪、可多轮复盘的智能体工作流，适用于 AI 社区论文复现、智算资源试跑、开源项目环境排坑和复现实验报告生成。
 
-> 本仓库对外提供 DataCanvas 品牌入口 `datacanvas-paper-reproduce`；内部复现流水线保留原 AR24 `ar24-*` skill 名称，以保证脚本路径和历史流程稳定。来源与上游版本信息见 [`UPSTREAM_PROVENANCE.md`](UPSTREAM_PROVENANCE.md)。
+> 本仓库对外提供 DataCanvas 品牌入口 `datacanvas-paper-reproduce`；内部复现流水线保留 `ar24-*` skill 名称，以保证脚本路径和历史流程稳定。
 
 ## 核心能力
 
@@ -284,7 +284,6 @@ Before step_0, ask me to confirm local / SSH / CCI backend.
 ```text
 .
 ├── README.md
-├── UPSTREAM_PROVENANCE.md
 ├── datacanvas-paper-reproduce/
 │   └── SKILL.md
 ├── ar24-auto-reproduct/
@@ -332,10 +331,3 @@ find . -name '*.pyc' -delete
 - 更新内部流水线时，应同步检查 `ar24-auto-reproduct/PIPELINE.md`、各 runner 脚本和 README。
 - 发布到 AI 社区前，建议补充项目封面、示例复现截图或示例报告路径，以提高可读性。
 
-## 来源与版本
-
-本仓库从 AR24 复现 skill 套件提取并整理，原始来源、修订版本和 vendoring 信息见：
-
-```text
-UPSTREAM_PROVENANCE.md
-```
